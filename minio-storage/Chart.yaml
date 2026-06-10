@@ -1,0 +1,12 @@
+apiVersion: v2
+name: minio-storage
+description: Helm sub-chart for MinIO object storage deployment
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - minio
+  - object-storage
+  - s3
+maintainers:
+  - name: OCP Stacks Lab

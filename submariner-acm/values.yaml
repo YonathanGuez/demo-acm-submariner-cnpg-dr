@@ -1,0 +1,57 @@
+# Submariner ACM Sub-Chart Values
+
+submariner:
+  enabled: true
+  cableDriver: vxlan
+  IPSecIKEPort: 500
+  IPSecNATTPort: 4500
+  airGappedDeployment: false
+  NATTEnable: true
+  loadBalancerEnable: true
+  natTransversalEnabled: true
+  version: 0.18.0
+  brokerK8sApiServer: ""
+  brokerK8sApiServerToken: ""
+  brokerK8sRemoteNamespace: submariner-broker
+  brokerK8sSecret: submariner-broker-secret
+  subscriptionConfig:
+    source: redhat-operators
+    sourceNamespace: openshift-marketplace
+    channel: stable-0.22
+    startingCSV:
+    installPlanApproval: automatic
+clusterSet:
+  name: submariner-set
+
+serviceExport:
+  enabled: true
+  # Services to export for cross-cluster access
+  services:
+    - name: ocp-database-rw
+      namespace: cloudnative-pg-operator
+
+# Global cluster configuration
+clusters:
+  cluster1:
+    name: cluster1
+    enabled: true
+    region: eu-west-2
+    podCIDR: 10.128.0.0/14
+    serviceCIDR: 172.30.0.0/16
+    machineNetwork: 10.0.0.0/16
+    awsInstanceType: c5d.large
+
+  cluster2:
+    name: cluster2
+    enabled: true
+    region: eu-west-3
+    podCIDR: 10.132.0.0/14
+    serviceCIDR: 172.31.0.0/16
+    machineNetwork: 10.0.0.0/16
+    awsInstanceType: c5d.large
+
+# Common labels
+commonLabels: {}
+
+# Common annotations
+commonAnnotations: {}

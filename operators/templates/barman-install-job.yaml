@@ -1,0 +1,91 @@
+{{- if .Values.barman.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: barman-installer
+  namespace: {{ .Values.barman.namespace }}
+  labels:
+    app.kubernetes.io/component: barman
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: barman-installer
+  labels:
+    app.kubernetes.io/component: barman
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: barman-installer
+  labels:
+    app.kubernetes.io/component: barman
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+subjects:
+  - kind: ServiceAccount
+    name: barman-installer
+    namespace: {{ .Values.barman.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: barman-installer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: barman-plugin-install
+  namespace: {{ .Values.barman.namespace }}
+  labels:
+    app.kubernetes.io/component: barman
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: barman-installer
+      restartPolicy: OnFailure
+      containers:
+        - name: install
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              BARMAN_URL="{{ .Values.barman.manifestURL }}"
+              TARGET_NS="{{ .Values.barman.namespace }}"
+
+              echo "Checking if Barman plugin is already installed..."
+              if kubectl get deployment barman-cloud-backup -n "$TARGET_NS" > /dev/null 2>&1; then
+                echo "Barman plugin already installed, skipping."
+                exit 0
+              fi
+
+              echo "Installing Barman plugin {{ .Values.barman.version }}..."
+              curl -sSfL "$BARMAN_URL" | \
+                sed "s|namespace: cnpg-system|namespace: $TARGET_NS|g" | \
+                sed '/seccomp.security.alpha.kubernetes.io/d' | \
+                sed '/runAsUser: 10001/d' | \
+                sed '/runAsGroup: 10001/d' | \
+                kubectl apply -f -
+
+              echo "Barman plugin installed."
+{{- end }}

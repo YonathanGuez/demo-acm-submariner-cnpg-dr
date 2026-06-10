@@ -1,0 +1,144 @@
+{{- if .Values.submariner.enabled }}
+{{- if .Values.clusters.cluster1.enabled }}
+apiVersion: work.open-cluster-management.io/v1
+kind: ManifestWork
+metadata:
+  name: submariner-gateway-label
+  namespace: {{ .Values.clusters.cluster1.name }}
+spec:
+  workload:
+    manifests:
+      - apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: submariner-gateway-labeler
+          namespace: default
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: submariner-gateway-labeler
+        rules:
+          - apiGroups: [""]
+            resources: ["nodes"]
+            verbs: ["get", "list", "patch", "update"]
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: submariner-gateway-labeler
+        subjects:
+          - kind: ServiceAccount
+            name: submariner-gateway-labeler
+            namespace: default
+        roleRef:
+          kind: ClusterRole
+          name: submariner-gateway-labeler
+          apiGroup: rbac.authorization.k8s.io
+      - apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: submariner-gateway-label
+          namespace: default
+        spec:
+          ttlSecondsAfterFinished: 300
+          backoffLimit: 5
+          template:
+            spec:
+              serviceAccountName: submariner-gateway-labeler
+              restartPolicy: OnFailure
+              containers:
+                - name: label
+                  image: bitnami/kubectl:latest
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      set -e
+                      echo "Checking if a gateway node already exists..."
+                      EXISTING=$(kubectl get nodes -l submariner.io/gateway=true -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+                      if [ -n "$EXISTING" ]; then
+                        echo "Gateway node already exists: $EXISTING. Skipping."
+                        exit 0
+                      fi
+                      echo "No gateway node found. Selecting first worker node..."
+                      WORKER=$(kubectl get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+                      if [ -z "$WORKER" ]; then
+                        echo "ERROR: No worker nodes found."
+                        exit 1
+                      fi
+                      echo "Labeling node $WORKER with submariner.io/gateway=true..."
+                      kubectl label node "$WORKER" submariner.io/gateway=true --overwrite
+                      echo "Done."
+---
+{{- end }}
+{{- if .Values.clusters.cluster2.enabled }}
+apiVersion: work.open-cluster-management.io/v1
+kind: ManifestWork
+metadata:
+  name: submariner-gateway-label
+  namespace: {{ .Values.clusters.cluster2.name }}
+spec:
+  workload:
+    manifests:
+      - apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: submariner-gateway-labeler
+          namespace: default
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: submariner-gateway-labeler
+        rules:
+          - apiGroups: [""]
+            resources: ["nodes"]
+            verbs: ["get", "list", "patch", "update"]
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: submariner-gateway-labeler
+        subjects:
+          - kind: ServiceAccount
+            name: submariner-gateway-labeler
+            namespace: default
+        roleRef:
+          kind: ClusterRole
+          name: submariner-gateway-labeler
+          apiGroup: rbac.authorization.k8s.io
+      - apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: submariner-gateway-label
+          namespace: default
+        spec:
+          ttlSecondsAfterFinished: 300
+          backoffLimit: 5
+          template:
+            spec:
+              serviceAccountName: submariner-gateway-labeler
+              restartPolicy: OnFailure
+              containers:
+                - name: label
+                  image: bitnami/kubectl:latest
+                  command:
+                    - /bin/sh
+                    - -c
+                    - |
+                      set -e
+                      echo "Checking if a gateway node already exists..."
+                      EXISTING=$(kubectl get nodes -l submariner.io/gateway=true -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+                      if [ -n "$EXISTING" ]; then
+                        echo "Gateway node already exists: $EXISTING. Skipping."
+                        exit 0
+                      fi
+                      echo "No gateway node found. Selecting first worker node..."
+                      WORKER=$(kubectl get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+                      if [ -z "$WORKER" ]; then
+                        echo "ERROR: No worker nodes found."
+                        exit 1
+                      fi
+                      echo "Labeling node $WORKER with submariner.io/gateway=true..."
+                      kubectl label node "$WORKER" submariner.io/gateway=true --overwrite
+                      echo "Done."
+---
+{{- end }}
+{{- end }}

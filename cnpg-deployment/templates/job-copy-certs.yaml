@@ -1,0 +1,96 @@
+{{- if and (eq .Values.replication.role "replica") .Values.replica.certBridge.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-bridge-sa
+  namespace: {{ .Values.namespace }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-bridge-role
+  namespace: {{ .Values.namespace }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-bridge-rolebinding
+  namespace: {{ .Values.namespace }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-bridge-role
+subjects:
+  - kind: ServiceAccount
+    name: cert-bridge-sa
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-bridge
+  namespace: {{ .Values.namespace }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: cert-bridge-sa
+      restartPolicy: OnFailure
+      volumes:
+        - name: cluster1-kubeconfig
+          secret:
+            secretName: {{ .Values.replica.certBridge.cluster1KubeconfigSecret }}
+      containers:
+        - name: cert-bridge
+          image: bitnami/kubectl:latest
+          volumeMounts:
+            - name: cluster1-kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              REMOTE_KC=/kubeconfig/config
+              NS={{ .Values.namespace }}
+
+              echo "Fetching certs from cluster1..."
+              CA_CRT=$(kubectl --kubeconfig=$REMOTE_KC get secret ocp-database-ca -n $NS -o jsonpath='{.data.ca\.crt}')
+              TLS_CRT=$(kubectl --kubeconfig=$REMOTE_KC get secret ocp-database-replication -n $NS -o jsonpath='{.data.tls\.crt}')
+              TLS_KEY=$(kubectl --kubeconfig=$REMOTE_KC get secret ocp-database-replication -n $NS -o jsonpath='{.data.tls\.key}')
+
+              echo "Creating ocp-database-ca in cluster2..."
+              kubectl create secret generic ocp-database-ca \
+                --from-literal=ca.crt="$(echo $CA_CRT | base64 -d)" \
+                -n $NS --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "Creating ocp-database-replication in cluster2..."
+              kubectl create secret generic ocp-database-replication \
+                --from-literal=tls.crt="$(echo $TLS_CRT | base64 -d)" \
+                --from-literal=tls.key="$(echo $TLS_KEY | base64 -d)" \
+                -n $NS --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "Secrets ocp-database-ca and ocp-database-replication created in cluster2."
+{{- end }}

@@ -1,0 +1,44 @@
+# MinIO Storage Sub-Chart Values
+
+namespace: minio
+replicaCount: 1
+
+image:
+  repository: quay.io/minio/minio
+  pullPolicy: IfNotPresent
+  tag: latest
+
+credentials:
+  rootUser: minio
+  rootPassword: minio123
+
+storage:
+  size: 5Gi
+  accessMode: ReadWriteOnce
+  storageClass: ""
+
+service:
+  type: ClusterIP
+  apiPort: 9000
+  consolePort: 9090
+
+route:
+  enabled: true
+  tlsTermination: edge
+  # apiHostname: minio-api.example.com
+  # consoleHostname: minio-console.example.com
+
+resources:
+  requests:
+    memory: "100Mi"
+    cpu: "20m"
+  limits:
+    memory: "1Gi"
+    cpu: "250m"
+
+buckets:
+  - cnpg-backups
+
+commonLabels: {}
+
+commonAnnotations: {}

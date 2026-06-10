@@ -1,0 +1,102 @@
+{{- if and (eq .Values.replication.role "primary") .Values.dataGenerator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-generator
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-generator
+  template:
+    metadata:
+      labels:
+        app: data-generator
+        {{- with .Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.commonAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+      - name: generator
+        image: {{ .Values.dataGenerator.image }}
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PGHOST
+          value: ocp-database-rw
+        - name: PGPORT
+          value: "5432"
+        - name: PGDATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: db-config
+              key: database.name
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: password
+        - name: INSERT_INTERVAL
+          value: {{ .Values.dataGenerator.insertInterval | quote }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+            echo "Connecting to Host: $PGHOST | User: $PGUSER | Database: $PGDATABASE "
+            while true; do
+            # Get current timestamp for the label
+              TS=$(date +%H%M%S)
+              # Generate a short random string to avoid any collision
+              RAND=$(head /dev/urandom | tr -dc a-z0-9 | head -c 4)
+              
+              USER_VAL="user_${TS}_${RAND}"
+              EMAIL_VAL="${USER_VAL}@sim.com"
+              # Notice: no -U or -d needed because of the env variables!
+              psql -c \
+                "INSERT INTO users (username, email) VALUES ('$USER_VAL', '$EMAIL_VAL') ON CONFLICT DO NOTHING;"
+              
+              echo "Successfully inserted: $USER_VAL"
+              sleep 10
+            done
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  database.name: {{ .Values.database.name }}
+{{- end }}

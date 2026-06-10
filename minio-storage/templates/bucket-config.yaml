@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-bucket-config
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  create-buckets.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    echo "MinIO Bucket Initialization Script"
+    echo "==================================="
+    echo "Service URL: ${MINIO_SERVICE_URL}"
+    echo "Waiting for MinIO to be ready..."
+
+    echo "Setting up MinIO Client alias..."
+    mc --config-dir /tmp/.mc alias set openshift-minio "${MINIO_SERVICE_URL}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"
+    echo "✓ MinIO is ready and accessible"
+
+    if [ -n "${MINIO_BUCKETS:-}" ]; then
+      echo "Reading buckets from MINIO_BUCKETS = $MINIO_BUCKETS environment variable..."
+      for bucket in $(echo "$MINIO_BUCKETS" | tr ',' ' '); do
+        bucket=$(echo "$bucket")
+        if [ -z "$bucket" ]; then
+          continue
+        fi
+        if mc --config-dir /tmp/.mc ls "openshift-minio/$bucket" > /dev/null 2>&1; then
+          echo "--> Bucket '$bucket' already exists. Skipping."
+        else
+          echo "--> Creating bucket '$bucket'..."
+          mc --config-dir /tmp/.mc mb "openshift-minio/$bucket"
+          echo "--> Bucket '$bucket' created successfully!"
+        fi
+      done
+    fi
+
+    echo ""
+    echo "✓ Bucket initialization completed successfully"
+    exit 0

@@ -1,0 +1,73 @@
+# CNPG Deployment Sub-Chart Values
+
+namespace: cloudnative-pg-operator
+replication:
+  role: replica # primary or replica
+
+database:
+  name: postgres
+  instances: 3
+  storage:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    storageClass: ""
+
+credentials:
+  username: app
+  password: app
+
+backup:
+  enabled: true
+  schedule: "0 */2 * * * *"
+
+replicationConfig:
+  enabled: true
+  method: streaming
+  user: streaming_replica
+  password: streaming_replication_pwd
+
+dataGenerator:
+  enabled: true
+  image: postgres:16-alpine
+  insertInterval: 10
+
+minioIntegration:
+  enabled: true
+  endpoint: "http://minio-service.minio.svc.cluster.local:9000"
+  destinationPath: s3://cnpg-backups/
+  credentials:
+    accessKey: minio
+    secretKey: minio123
+  ssl: false
+  s3ForcePathStyle: true # This is the "magic" line for MinIO compatibility
+  wal:
+    compression: gzip
+  data:
+    compression: gzip
+initSQL:
+  enabled: true
+  script: |
+    -- This runs inside the 'app' database as the 'app' user
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    ALTER TABLE users OWNER TO app;
+    INSERT INTO users (username, email) VALUES ('admin', 'admin@example.com');
+
+# Replica-specific configuration
+replica:
+  bootstrapMethod: pg_basebackup
+  primaryConnString: "host=ocp-database-rw.cloudnative-pg-operator.svc.clusterset.local user=streaming_replica port=5432 dbname=postgres"
+  certificates:
+    caSecret: ocp-database-ca
+    replicationSecret: ocp-database-replication
+  certBridge:
+    enabled: true
+    cluster1KubeconfigSecret: cluster1-kubeconfig
+    cluster1Kubeconfig: "" # pass via --set-file at deploy time
+commonLabels: {}
+
+commonAnnotations: {}

@@ -1,0 +1,48 @@
+---
+{{- if eq .Values.replication.role "replica" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-replica-stream
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  instances: 3
+  storage:
+    size: 1Gi
+
+  # 1. Enable replication from the primary
+  replica:
+    enabled: true
+    source: ocp-database
+
+  # 2. Bootstrap via pg_basebackup from the remote cluster
+  bootstrap:
+    pg_basebackup:
+      source: ocp-database
+
+  externalClusters:
+    - name:  ocp-database
+      connectionParameters:
+        host: ocp-database-rw.{{ .Values.namespace }}.svc.clusterset.local
+        user: {{ .Values.replicationConfig.user }}
+        dbname: {{ .Values.database.name }}
+        sslmode: verify-ca
+      sslKey:
+        name: {{ .Values.replica.certificates.replicationSecret }}
+        key: tls.key
+      sslCert:
+        name: {{ .Values.replica.certificates.replicationSecret }}
+        key: tls.crt
+      sslRootCert:
+        name: {{ .Values.replica.certificates.caSecret }}
+        key: ca.crt
+{{- end }}
+---

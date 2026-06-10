@@ -1,0 +1,82 @@
+{{- if and .Values.serviceExport.enabled .Values.clusters.cluster1.enabled }}
+{{- range .Values.serviceExport.services }}
+---
+# ManifestWork pushes the ServiceExport + required RBAC to the managed cluster via ACM.
+# The ServiceExport CRD lives on the managed cluster (installed by Submariner),
+# not on the hub — so we cannot create it directly here.
+# The ClusterRole/Binding grants klusterlet-work-sa permission to manage ServiceExports.
+apiVersion: work.open-cluster-management.io/v1
+kind: ManifestWork
+metadata:
+  name: service-export-{{ .name }}
+  namespace: {{ $.Values.clusters.cluster1.name }}
+spec:
+  workload:
+    manifests:
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: klusterlet-serviceexport-manager
+        rules:
+          - apiGroups: ["multicluster.x-k8s.io"]
+            resources: ["serviceexports"]
+            verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: klusterlet-serviceexport-manager
+        subjects:
+          - kind: ServiceAccount
+            name: klusterlet-work-sa
+            namespace: open-cluster-management-agent
+        roleRef:
+          kind: ClusterRole
+          name: klusterlet-serviceexport-manager
+          apiGroup: rbac.authorization.k8s.io
+      - apiVersion: multicluster.x-k8s.io/v1alpha1
+        kind: ServiceExport
+        metadata:
+          name: {{ .name }}
+          namespace: {{ .namespace }}
+        spec: {}
+{{- end }}
+{{- end }}
+{{- if and .Values.serviceExport.enabled .Values.clusters.cluster2.enabled }}
+{{- range .Values.serviceExport.services }}
+---
+apiVersion: work.open-cluster-management.io/v1
+kind: ManifestWork
+metadata:
+  name: service-export-{{ .name }}
+  namespace: {{ $.Values.clusters.cluster2.name }}
+spec:
+  workload:
+    manifests:
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: klusterlet-serviceexport-manager
+        rules:
+          - apiGroups: ["multicluster.x-k8s.io"]
+            resources: ["serviceexports"]
+            verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: klusterlet-serviceexport-manager
+        subjects:
+          - kind: ServiceAccount
+            name: klusterlet-work-sa
+            namespace: open-cluster-management-agent
+        roleRef:
+          kind: ClusterRole
+          name: klusterlet-serviceexport-manager
+          apiGroup: rbac.authorization.k8s.io
+      - apiVersion: multicluster.x-k8s.io/v1alpha1
+        kind: ServiceExport
+        metadata:
+          name: {{ .name }}
+          namespace: {{ .namespace }}
+        spec: {}
+{{- end }}
+{{- end }}

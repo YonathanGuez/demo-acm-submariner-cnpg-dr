@@ -1,0 +1,19 @@
+certManager:
+  enabled: true
+  version: v1.20.2
+  namespace: cert-manager
+  installCRDs: true
+
+cnpg:
+  enabled: true
+  namespace: cloudnative-pg-operator
+  channel: stable-v1
+  source: certified-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+
+barman:
+  enabled: true
+  version: v0.12.0
+  namespace: cloudnative-pg-operator
+  manifestURL: https://github.com/cloudnative-pg/plugin-barman-cloud/releases/download/v0.12.0/manifest.yaml

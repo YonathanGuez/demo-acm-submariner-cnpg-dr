@@ -1,0 +1,33 @@
+{{- if .Values.cnpg.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.cnpg.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: helm
+    app.kubernetes.io/component: cnpg-operator
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cloudnative-pg-operator-group
+  namespace: {{ .Values.cnpg.namespace }}
+  labels:
+    app.kubernetes.io/component: cnpg-operator
+spec:
+  targetNamespaces: []
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cloudnative-pg
+  namespace: {{ .Values.cnpg.namespace }}
+  labels:
+    app.kubernetes.io/component: cnpg-operator
+spec:
+  channel: {{ .Values.cnpg.channel }}
+  name: cloudnative-pg
+  source: {{ .Values.cnpg.source }}
+  sourceNamespace: {{ .Values.cnpg.sourceNamespace }}
+  installPlanApproval: {{ .Values.cnpg.installPlanApproval }}
+{{- end }}

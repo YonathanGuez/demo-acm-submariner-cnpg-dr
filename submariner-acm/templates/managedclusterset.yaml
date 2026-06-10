@@ -1,0 +1,32 @@
+{{- if .Values.submariner.enabled }}
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSet
+metadata:
+  name: {{ .Values.clusterSet.name }}
+  annotations:
+    cluster.open-cluster-management.io/submariner-broker-ns: {{ .Values.clusterSet.name }}-broker
+spec:
+  clusterSelector:
+    selectorType: ExclusiveClusterSetLabel
+---
+{{- if .Values.clusters.cluster1.enabled }}
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: {{ .Values.clusterSet.name }}
+  namespace: {{ .Values.clusters.cluster1.name }}
+spec:
+  clusterSet: {{ .Values.clusterSet.name }}
+---
+{{- end }}
+{{- if .Values.clusters.cluster2.enabled }}
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: {{ .Values.clusterSet.name }}
+  namespace: {{ .Values.clusters.cluster2.name }}
+spec:
+  clusterSet: {{ .Values.clusterSet.name }}
+---
+{{- end }}
+{{- end }}

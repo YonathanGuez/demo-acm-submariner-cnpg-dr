@@ -9,6 +9,14 @@
 *.log
 *.log.*
 *.sig
-
 pkg/
 src/
+operators/charts
+operators/charts/*
+submariner-acm/charts
+submariner-acm/charts/*
+cnpg-deployment/charts
+cnpg-deployment/charts/*
+minio-storage/charts
+minio-storage/charts/*
+charts/

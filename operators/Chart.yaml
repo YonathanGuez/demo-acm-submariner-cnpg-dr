@@ -1,0 +1,18 @@
+apiVersion: v2
+name: operators
+description: Helm sub-chart for installing prerequisite operators (cert-manager, CloudNativePG, Barman)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - operators
+  - cert-manager
+  - cnpg
+  - barman
+maintainers:
+  - name: OCP Stacks Lab
+dependencies:
+  - name: cloudnative-pg
+    version: ">=0.21.0"
+    repository: https://cloudnative-pg.io/charts
+    condition: cnpg.enabled

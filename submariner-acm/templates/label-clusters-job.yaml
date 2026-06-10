@@ -1,0 +1,81 @@
+{{- if .Values.submariner.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: label-clusters
+  namespace: default
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: label-clusters
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+rules:
+  - apiGroups: ["cluster.open-cluster-management.io"]
+    resources: ["managedclusters"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["cluster.open-cluster-management.io"]
+    resources: ["managedclustersets/join"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: label-clusters
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+subjects:
+  - kind: ServiceAccount
+    name: label-clusters
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: label-clusters
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: label-clusters
+  namespace: default
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      serviceAccountName: label-clusters
+      restartPolicy: OnFailure
+      containers:
+        - name: label
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              {{- if .Values.clusters.cluster1.enabled }}
+              echo "Patching {{ .Values.clusters.cluster1.name }} into clusterset {{ .Values.clusterSet.name }}..."
+              kubectl patch managedcluster {{ .Values.clusters.cluster1.name }} --type=merge \
+                -p '{"metadata":{"labels":{"cluster.open-cluster-management.io/clusterset":"{{ .Values.clusterSet.name }}"}}}'
+              echo "{{ .Values.clusters.cluster1.name }} patched."
+              {{- end }}
+              {{- if .Values.clusters.cluster2.enabled }}
+              echo "Patching {{ .Values.clusters.cluster2.name }} into clusterset {{ .Values.clusterSet.name }}..."
+              kubectl patch managedcluster {{ .Values.clusters.cluster2.name }} --type=merge \
+                -p '{"metadata":{"labels":{"cluster.open-cluster-management.io/clusterset":"{{ .Values.clusterSet.name }}"}}}'
+              echo "{{ .Values.clusters.cluster2.name }} patched."
+              {{- end }}
+              echo "All clusters patched."
+{{- end }}

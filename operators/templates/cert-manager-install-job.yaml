@@ -1,0 +1,90 @@
+{{- if .Values.certManager.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager-installer
+  namespace: {{ .Values.certManager.namespace }}
+  labels:
+    app.kubernetes.io/component: cert-manager
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-manager-installer
+  labels:
+    app.kubernetes.io/component: cert-manager
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-manager-installer
+  labels:
+    app.kubernetes.io/component: cert-manager
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager-installer
+    namespace: {{ .Values.certManager.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cert-manager-installer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-manager-install
+  namespace: {{ .Values.certManager.namespace }}
+  labels:
+    app.kubernetes.io/component: cert-manager
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: cert-manager-installer
+      restartPolicy: OnFailure
+      containers:
+        - name: install
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              CERT_MANAGER_URL="https://github.com/cert-manager/cert-manager/releases/download/{{ .Values.certManager.version }}/cert-manager.yaml"
+
+              echo "Checking if cert-manager is already installed..."
+              if kubectl get deployment cert-manager -n {{ .Values.certManager.namespace }} > /dev/null 2>&1; then
+                echo "cert-manager already installed, skipping."
+                exit 0
+              fi
+
+              echo "Installing cert-manager {{ .Values.certManager.version }}..."
+              kubectl apply -f "$CERT_MANAGER_URL"
+
+              echo "Waiting for cert-manager pods to be ready..."
+              kubectl -n {{ .Values.certManager.namespace }} rollout status deployment/cert-manager --timeout=300s
+              kubectl -n {{ .Values.certManager.namespace }} rollout status deployment/cert-manager-webhook --timeout=300s
+              kubectl -n {{ .Values.certManager.namespace }} rollout status deployment/cert-manager-cainjector --timeout=300s
+
+              echo "cert-manager installed and ready."
+{{- end }}

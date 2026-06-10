@@ -1,0 +1,22 @@
+{{- if and (eq .Values.replication.role "primary") .Values.backup.enabled .Values.minioIntegration.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: ocp-database-backup
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  method: plugin
+  cluster:
+    name: ocp-database
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+{{- end }}

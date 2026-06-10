@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  internalTrafficPolicy: Cluster
+  selector:
+    app: minio
+  ports:
+    - name: api
+      protocol: TCP
+      port: {{ .Values.service.apiPort }}
+      targetPort: {{ .Values.service.apiPort }}
+    - name: ui
+      protocol: TCP
+      port: {{ .Values.service.consolePort }}
+      targetPort: {{ .Values.service.consolePort }}

@@ -1,0 +1,31 @@
+{{- if and (eq .Values.replication.role "primary") .Values.minioIntegration.enabled }}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: minio-storage
+  namespace: {{ .Values.namespace }}
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  configuration: 
+    destinationPath: {{ .Values.minioIntegration.destinationPath }} 
+    endpointURL: {{ .Values.minioIntegration.endpoint }}
+    s3Credentials:
+      accessKeyId:
+        name: minio-creds
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: minio-creds
+        key: SECRET_ACCESS_KEY
+    s3ForcePathStyle: {{ .Values.minioIntegration.s3ForcePathStyle }} 
+    wal:
+      compression: {{ .Values.minioIntegration.wal.compression }} 
+    data:
+      compression: {{ .Values.minioIntegration.data.compression }} 
+{{- end }}

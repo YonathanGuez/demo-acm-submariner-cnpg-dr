@@ -108,8 +108,6 @@ You can use the project [ocp-acm-cluster-provisioner](https://github.com/Yonatha
 Multi-cluster deployment stack: **Operators** → **MinIO** → **CNPG Database** → **Submariner ACM** :
 
 ```bash
-helm dependency build .
-
 # 1. Operators (cert-manager, CNPG, Barman) on both clusters
 helm install operators operators --kube-context cluster1 --dependency-update
 helm install operators operators --kube-context cluster2 --dependency-update

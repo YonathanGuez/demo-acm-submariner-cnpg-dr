@@ -23,7 +23,6 @@ spec:
       secretAccessKey:
         name: minio-creds
         key: SECRET_ACCESS_KEY
-    s3ForcePathStyle: {{ .Values.minioIntegration.s3ForcePathStyle }} 
     wal:
       compression: {{ .Values.minioIntegration.wal.compression }} 
     data:
